@@ -535,7 +535,7 @@ server <- function(input, output,session) {
         }
     })
     
-    # Cost Results ------------------------------------
+    # Cost Results -------------------------------------
     
     output$costresultsvalue <- renderValueBox({
         valueBox(
