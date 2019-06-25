@@ -4,6 +4,7 @@ library(e1071)
 library(mlr)
 library(caret)
 library(dplyr)
+library(plotly)
 
 ############################################################# UI ###################################################################
 
@@ -133,13 +134,13 @@ body <- dashboardBody(
                     uiOutput("accurancyvalue"),
                     tags$hr(),
                     fluidRow(
-                        box(
-                            title = "Accuracy tab"
+                        box( width = 12,
+                            title = "Accuracy Histogram"
                             ,status = "primary"
                             ,solidHeader = TRUE 
                             ,collapsible = TRUE
                             ,collapsed = TRUE
-                            ,uiOutput("accuracyCVtab")
+                            ,plotlyOutput("accuracyCVbar")
                         )
                     ),
                     tags$hr(),
@@ -532,6 +533,19 @@ server <- function(input, output,session) {
     output$accuracyCVtab <- renderTable ({
         if (!is.null(v$accuracy)) {
             v$accuracyTab
+        }
+    })
+    
+    # Accuracy BarChart CrossValidation ------------------------------------
+    
+    output$accuracyCVbar <- renderPlotly ({
+        if (!is.null(v$accuracy)) {
+            plot_ly(
+                x = c(1:10),
+                y = c(v$accuracyTab),
+                name = "Bar Chart",
+                type = "bar"
+            )
         }
     })
     
