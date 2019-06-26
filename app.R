@@ -25,7 +25,7 @@ sidebar <- dashboardSidebar(
 body <- dashboardBody(
     tabItems(
         
-        #__________________________________________________ Initialisation __________________________________________________#
+        #__________________________________________________ Initialisation _______________________________________________________________________________________#
         
         tabItem(
             tabName = "initialisation",
@@ -76,7 +76,7 @@ body <- dashboardBody(
             )
         ),
         
-        #__________________________________________________ DataQuality Config __________________________________________________#
+        #__________________________________________________ DataQuality Config _______________________________________________________________________________________#
         
         tabItem(
             tabName = "dataqualityconfig",
@@ -84,7 +84,11 @@ body <- dashboardBody(
                 sidebarPanel(
                     h1("Data Quality Config"),
                     tags$hr(),
-                    h4("Choose any options you want"),
+                    h4("Do you want to remove columns with too many missing values ?"),
+                    uiOutput("pourcentageSelection"),
+                    uiOutput("removecolumnbutton"),
+                    tags$hr(),
+                    h4("Then, do you want to remove each row where there is at least one missing value ?"),
                     uiOutput("removeNAsbutton"),
                     tags$hr(),
                     uiOutput("step3button"),
@@ -92,12 +96,25 @@ body <- dashboardBody(
                     uiOutput("clearallreturnstep2")
                 ),
                 mainPanel(
-                    dataTableOutput("tabLoadedstep2")
+                    tabsetPanel(
+                        id = "tabset",
+                        tabPanel(
+                            "Bar Chart",
+                            value = "barchart",
+                            h3("Pourcentage of missing values in each column"),
+                            plotlyOutput("NAsBarChart")
+                        ),
+                        tabPanel(
+                            "DataBase",
+                            value = "database",
+                            dataTableOutput("tabLoadedstep2")
+                        )
+                    )
                 )
             )
         ),
         
-        #____________________________________________________ Costs Config ____________________________________________________#
+        #____________________________________________________ Costs Config _________________________________________________________________________________________#
         
         tabItem(
             tabName = "costsconfig",
@@ -110,6 +127,7 @@ body <- dashboardBody(
                     tags$hr(),
                     uiOutput("costsTab"),
                     tags$hr(),
+                    uiOutput("foldselection"),
                     uiOutput("step4button"),
                     tags$hr(),
                     uiOutput("clearallreturnstep3")
@@ -120,7 +138,7 @@ body <- dashboardBody(
             )
         ),
         
-        #_______________________________________________________ Results _______________________________________________________#
+        #_______________________________________________________ Results ____________________________________________________________________________________________#
         
         tabItem(
             tabName = "results",
@@ -162,19 +180,22 @@ ui <- dashboardPage(title = 'Data Quality test - Week 3', header, sidebar, body,
 
 server <- function(input, output,session) {
     
-    #__________________________________________________ Reactive values ____________________________________________________#
+    #__________________________________________________ Reactive values _________________________________________________________________________________________#
     
     v <- reactiveValues(data = NULL,
                         dataframestep1 = NULL,
                         dataframestep2 = NULL,
+                        dataframestep2Bis = NULL,
                         dataframestep3 = NULL,
                         dataframestep4 = NULL,
                         columnSelected = NULL, 
                         resultData = NULL, 
                         accuracy = NULL, 
-                        accuracyTab = NULL)
+                        accuracyTab = NULL,
+                        resNAsBarChart = NULL,
+                        stopBarChart = NULL)
     
-    #__________________________________________________ Initialisation ______________________________________________________#
+    #__________________________________________________ Initialisation ___________________________________________________________________________________________#
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Buttons ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     
@@ -187,12 +208,15 @@ server <- function(input, output,session) {
         v$data = NULL
         v$dataframestep1 = NULL
         v$dataframestep2 = NULL
+        v$dataframestep2Bis = NULL
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
         v$columnSelected = NULL
         v$resultData = NULL
         v$accuracy = NULL
         v$accuracyTab = NULL
+        v$resNAsBarChart = NULL
+        v$stopBarChart = NULL
     })
     
     # Upload button --------------------------------------------
@@ -230,6 +254,8 @@ server <- function(input, output,session) {
     })
     observeEvent(input$step2button,{
         v$dataframestep2 <- v$dataframestep1
+        v$dataframestep2Bis <- v$dataframestep1
+        
         newtab <- switch(input$sidebarmenu,
                          "initialisation" = "dataqualityconfig",
                          "dataqualityconfig" = "initialisation"
@@ -263,15 +289,17 @@ server <- function(input, output,session) {
         options = list(scrollX = TRUE,pageLength = 14, searching = FALSE)
     )
     
-    #__________________________________________________ DataQuality Config __________________________________________________#
+    #__________________________________________________ DataQuality Config _______________________________________________________________________________________#
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Buttons ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     
-    # Remove NAs button --------------------------------------------
+    
+    
+    # Remove All NAs button --------------------------------------------
     
     output$removeNAsbutton <- renderUI({
         if(is.null(v$dataframestep2)) return (NULL)
-        actionButton("removeNAsbutton","Remove NAs")
+        actionButton("removeNAsbutton","Remove All NAs")
     })
     observeEvent(input$removeNAsbutton,{
         vect <- 0
@@ -283,6 +311,10 @@ server <- function(input, output,session) {
             }
         }
         v$dataframestep2 <- v$dataframestep2[vect,]
+        v$dataframestep2 <- v$dataframestep2[-1,]
+        v$stopBarChart <- TRUE
+        updateTabsetPanel(session, "tabset",
+                          selected = "database")
     })
     
     # Step 3 button --------------------------------------------
@@ -309,18 +341,43 @@ server <- function(input, output,session) {
         v$data = NULL
         v$dataframestep1 = NULL
         v$dataframestep2 = NULL
+        v$dataframestep2Bis = NULL
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
         v$columnSelected = NULL
         v$resultData = NULL
         v$accuracy = NULL
         v$accuracyTab = NULL
+        v$resNAsBarChart = NULL
+        v$stopBarChart = NULL
+        
         newtab <- switch(input$sidebarmenu,
                          "dataqualityconfig" = "initialisation",
                          "initialisation" = "dataqualityconfig"
         )
         updateTabItems(session,"sidebarmenu", newtab)
     })
+    
+    # Remove column with NAs according pourcent button --------------------------------------------
+    
+    output$removecolumnbutton <- renderUI({
+        if(is.null(v$dataframestep2)) return (NULL)
+        actionButton("removecolumnbutton","Remove column(s) according to your choice")
+    })
+    observeEvent(input$removecolumnbutton,{
+        resColo <- 0
+        for (i in names(v$resNAsBarChart)){
+            if (v$resNAsBarChart[i] < input$pourcentageSelection) resColo[i] = i
+        }
+        resColo <- resColo[-1]
+        v$dataframestep2 <- v$dataframestep2Bis[,resColo]
+    })
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Selections ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    
+    output$pourcentageSelection <- renderUI(
+        sliderInput("pourcentageSelection","Choose a pourcentage of NAs max", 0,100,50)
+    )
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Renders ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     
@@ -331,7 +388,22 @@ server <- function(input, output,session) {
         options = list(scrollX = TRUE,pageLength = 14, searching = FALSE)
     )
     
-    #____________________________________________________ Costs Config ____________________________________________________#
+    # Bar chart of NAs pourcentage --------------------------------------------
+    
+    output$NAsBarChart <- renderPlotly({
+        if(is.null(v$stopBarChart)){
+            res <- 0
+            for (i in names(v$dataframestep2)) {
+                col <- v$dataframestep2[,i]
+                res[i] = round(sum(is.na(col), na.rm = TRUE) / length(col) * 100,digits = 2)
+            }
+            v$resNAsBarChart <- res[-1]
+            plot_ly(x = names(v$resNAsBarChart), y = v$resNAsBarChart, name = "Pourcentage of NAs in each column", type = "bar")
+        }
+    }
+    )
+    
+    #____________________________________________________ Costs Config _________________________________________________________________________________________#
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Buttons ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     
@@ -359,7 +431,7 @@ server <- function(input, output,session) {
         noyes <- 0
         yesyes <- 0
         
-        for (i in 1:10) {
+        for (i in 1:input$foldselection) {
             
             training.samples <- df_noNAs[,v$columnSelected] %>% 
                 caret::createDataPartition(p = 0.8, list = FALSE)
@@ -438,12 +510,16 @@ server <- function(input, output,session) {
         v$data = NULL
         v$dataframestep1 = NULL
         v$dataframestep2 = NULL
+        v$dataframestep2Bis = NULL
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
         v$columnSelected = NULL
         v$resultData = NULL
         v$accuracy = NULL
         v$accuracyTab = NULL
+        v$resNAsBarChart = NULL
+        v$stopBarChart = NULL
+        
         newtab <- switch(input$sidebarmenu,
                          "costsconfig" = "initialisation",
                          "initialisation" = "costsconfig"
@@ -463,6 +539,11 @@ server <- function(input, output,session) {
         numericInput("cost2","Cost No -> Yes",value = 10)
     })
     
+    # Slide selection number of fold for crossValidation
+    output$foldselection <- renderUI({
+        sliderInput("foldselection","Number of fold for crossValidation", 1,50,10)
+    })
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Renders ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     
     # Table from CSV 3 --------------------------------------------
@@ -479,7 +560,7 @@ server <- function(input, output,session) {
                                  cost=c(0,input$cost1,input$cost2,0))
     })
     
-    #_______________________________________________________ Results _______________________________________________________#
+    #_______________________________________________________ Results ____________________________________________________________________________________________#
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Buttons ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     
@@ -492,12 +573,16 @@ server <- function(input, output,session) {
         v$data = NULL
         v$dataframestep1 = NULL
         v$dataframestep2 = NULL
+        v$dataframestep2Bis = NULL
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
         v$columnSelected = NULL
         v$resultData = NULL
         v$accuracy = NULL
         v$accuracyTab = NULL
+        v$resNAsBarChart = NULL
+        v$stopBarChart = NULL
+        
         newtab <- switch(input$sidebarmenu,
                          "results" = "initialisation",
                          "initialisation" = "results"
@@ -518,10 +603,18 @@ server <- function(input, output,session) {
     # Accuracy CrossValidation ------------------------------------
     
     output$accurancyvalue <- renderValueBox({
+        
+        res <- v$accuracyTab
+        mean <- mean(res)
+        error <- qt(0.975,df=length(res)-1)*sd(res)/sqrt(length(res))
+        
+        left <- mean - error
+        right <- mean + error
+        
         v$accuracy <- round(v$accuracy, digits = 2)
         valueBox(
-            value = paste(v$accuracy,"%")
-            ,paste('Accuracy :',v$accuracy,"%")
+            value = paste("Accuracy : ",v$accuracy,"%")
+            ,paste('Confidence Interval :',round(left,digits = 1),"%  /  ",round(right,digits = 1),"%")
             ,icon = icon("stats",lib='glyphicon')
             ,color = "purple")
         
@@ -541,7 +634,7 @@ server <- function(input, output,session) {
     output$accuracyCVbar <- renderPlotly ({
         if (!is.null(v$accuracy)) {
             plot_ly(
-                x = c(1:10),
+                x = c(1:input$foldselection),
                 y = c(v$accuracyTab),
                 name = "Bar Chart",
                 type = "bar"
@@ -552,13 +645,13 @@ server <- function(input, output,session) {
     # Cost Results -------------------------------------
     
     output$costresultsvalue <- renderValueBox({
+        result <- round(v$resultData, digits = 0)
         valueBox(
-            value = v$resultData
+            value = paste("Cost : ",v$resultData)
             ,paste('Cost :',v$resultData)
             ,icon = icon("menu-hamburger",lib='glyphicon')
             ,color = "green")
     })
-    
     
     
 }
