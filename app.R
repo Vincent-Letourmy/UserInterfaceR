@@ -159,7 +159,7 @@ body <- dashboardBody(
                     
                     column(6,
                            uiOutput("compare"),
-                           h1("Saved results"),
+                           h1("Previous results"),
                            tags$hr(),
                            uiOutput("accurancyvalueSaved"),
                            tags$hr(),
@@ -566,7 +566,7 @@ server <- function(input, output,session) {
     
     # Slide selection number of fold for crossValidation
     output$foldselection <- renderUI({
-        sliderInput("foldselection","Number of fold for crossValidation", 1,50,10)
+        sliderInput("foldselection","Number of fold for crossValidation", 1,50,30)
     })
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Renders ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
