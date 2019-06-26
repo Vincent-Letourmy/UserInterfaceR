@@ -142,41 +142,42 @@ body <- dashboardBody(
         
         tabItem(
             tabName = "results",
-            
-            
-            
-            sidebarLayout(
-                sidebarPanel(
-                    h1("Results"),
-                    tags$hr(),
-                    uiOutput("accurancyvalue"),
-                    tags$hr(),
-                    fluidRow(
-                        box( width = 12,
-                            title = "Accuracy Histogram"
-                            ,status = "primary"
-                            ,solidHeader = TRUE 
-                            ,collapsible = TRUE
-                            ,collapsed = TRUE
-                            ,plotlyOutput("accuracyCVbar")
-                        )
-                    ),
-                    tags$hr(),
-                    uiOutput("costresultsvalue"),
-                    tags$hr(),
-                    uiOutput("clearallreturnstep4")
-                ),
-                mainPanel(
-                    dataTableOutput("tabLoadedstep4")
+                fluidRow(
+                    column(6,
+                           uiOutput("clearallreturnstep4"),
+                           h1("Results"),
+                           tags$hr(),
+                           uiOutput("accurancyvalue"),
+                           tags$hr(),
+                           uiOutput("boxBarChar"),
+                           tags$hr(),
+                           uiOutput("costresultsvalue"),
+                           tags$hr()
+                           ,
+                           dataTableOutput("tabLoadedstep4")
+                           ),
+                    
+                    column(6,
+                           uiOutput("compare"),
+                           h1("Saved results"),
+                           tags$hr(),
+                           uiOutput("accurancyvalueSaved"),
+                           tags$hr(),
+                           uiOutput("boxBarCharSaved"),
+                           tags$hr(),
+                           uiOutput("costresultsvalueSaved"),
+                           tags$hr()
+                           ,
+                           dataTableOutput("tabLoadedstep4Saved")
+                           )
                 )
-            )
         )
     )
 )
 ui <- dashboardPage(title = 'Data Quality test - Week 3', header, sidebar, body, skin='blue')
 
 
-########################################################### Server #################################################################
+########################################################### Server ##################################################################################################
 
 server <- function(input, output,session) {
     
@@ -188,12 +189,19 @@ server <- function(input, output,session) {
                         dataframestep2Bis = NULL,
                         dataframestep3 = NULL,
                         dataframestep4 = NULL,
-                        columnSelected = NULL, 
+                        columnSelected = NULL,
+                        
                         resultData = NULL, 
                         accuracy = NULL, 
                         accuracyTab = NULL,
                         resNAsBarChart = NULL,
-                        stopBarChart = NULL)
+                        
+                        compared = NULL,
+                        dataframestep4Saved = NULL,
+                        resultDataSaved = NULL, 
+                        accuracySaved = NULL, 
+                        accuracyTabSaved = NULL,
+                        resNAsBarChartSaved = NULL)
     
     #__________________________________________________ Initialisation ___________________________________________________________________________________________#
     
@@ -216,7 +224,14 @@ server <- function(input, output,session) {
         v$accuracy = NULL
         v$accuracyTab = NULL
         v$resNAsBarChart = NULL
-        v$stopBarChart = NULL
+        
+        v$compared = NULL
+        v$dataframestep4Saved = NULL
+        v$resultDataSaved = NULL
+        v$accuracySaved = NULL
+        v$accuracyTabSaved = NULL
+        v$resNAsBarChartSaved = NULL
+        
     })
     
     # Upload button --------------------------------------------
@@ -312,7 +327,6 @@ server <- function(input, output,session) {
         }
         v$dataframestep2 <- v$dataframestep2[vect,]
         v$dataframestep2 <- v$dataframestep2[-1,]
-        v$stopBarChart <- TRUE
         updateTabsetPanel(session, "tabset",
                           selected = "database")
     })
@@ -349,7 +363,13 @@ server <- function(input, output,session) {
         v$accuracy = NULL
         v$accuracyTab = NULL
         v$resNAsBarChart = NULL
-        v$stopBarChart = NULL
+        
+        v$compared = NULL
+        v$dataframestep4Saved = NULL
+        v$resultDataSaved = NULL
+        v$accuracySaved = NULL
+        v$accuracyTabSaved = NULL
+        v$resNAsBarChartSaved = NULL
         
         newtab <- switch(input$sidebarmenu,
                          "dataqualityconfig" = "initialisation",
@@ -391,7 +411,6 @@ server <- function(input, output,session) {
     # Bar chart of NAs pourcentage --------------------------------------------
     
     output$NAsBarChart <- renderPlotly({
-        if(is.null(v$stopBarChart)){
             res <- 0
             for (i in names(v$dataframestep2)) {
                 col <- v$dataframestep2[,i]
@@ -399,7 +418,7 @@ server <- function(input, output,session) {
             }
             v$resNAsBarChart <- res[-1]
             plot_ly(x = names(v$resNAsBarChart), y = v$resNAsBarChart, name = "Pourcentage of NAs in each column", type = "bar")
-        }
+        
     }
     )
     
@@ -518,7 +537,13 @@ server <- function(input, output,session) {
         v$accuracy = NULL
         v$accuracyTab = NULL
         v$resNAsBarChart = NULL
-        v$stopBarChart = NULL
+        
+        v$compared = NULL
+        v$dataframestep4Saved = NULL
+        v$resultDataSaved = NULL
+        v$accuracySaved = NULL
+        v$accuracyTabSaved = NULL
+        v$resNAsBarChartSaved = NULL
         
         newtab <- switch(input$sidebarmenu,
                          "costsconfig" = "initialisation",
@@ -581,7 +606,13 @@ server <- function(input, output,session) {
         v$accuracy = NULL
         v$accuracyTab = NULL
         v$resNAsBarChart = NULL
-        v$stopBarChart = NULL
+        
+        v$compared = NULL
+        v$dataframestep4Saved = NULL
+        v$resultDataSaved = NULL
+        v$accuracySaved = NULL
+        v$accuracyTabSaved = NULL
+        v$resNAsBarChartSaved = NULL
         
         newtab <- switch(input$sidebarmenu,
                          "results" = "initialisation",
@@ -589,6 +620,28 @@ server <- function(input, output,session) {
         )
         updateTabItems(session,"sidebarmenu", newtab)
     })
+    
+    # Compare with other inputs
+    
+    output$compare <- renderUI({
+        actionButton("compare","Compare with other inputs")
+    })
+    observeEvent(input$compare,{
+        
+        v$resultDataSaved = v$resultData
+        v$accuracySaved = v$accuracy
+        v$accuracyTabSaved = v$accuracyTab
+        v$resNAsBarChartSaved = v$resNAsBarChart
+        v$dataframestep4Saved = v$dataframestep4
+        v$compared = TRUE
+        
+        newtab <- switch(input$sidebarmenu,
+                         "results" = "dataqualityconfig",
+                         "dataqualityconfig" = "results"
+        )
+        updateTabItems(session,"sidebarmenu", newtab)
+    })
+    
     
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Renders ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -621,14 +674,6 @@ server <- function(input, output,session) {
         
     })
     
-    # Accuracy tab CrossValidation ------------------------------------
-    
-    output$accuracyCVtab <- renderTable ({
-        if (!is.null(v$accuracy)) {
-            v$accuracyTab
-        }
-    })
-    
     # Accuracy BarChart CrossValidation ------------------------------------
     
     output$accuracyCVbar <- renderPlotly ({
@@ -642,16 +687,100 @@ server <- function(input, output,session) {
         }
     })
     
+    output$boxBarChar <- renderUI({
+        if (!is.null(v$accuracy)) {
+        fluidRow(
+            box( width = 12,
+                 title = "Accuracy Bar Chart"
+                 ,status = "primary"
+                 ,solidHeader = TRUE 
+                 ,collapsible = TRUE
+                 ,collapsed = TRUE
+                 ,plotlyOutput("accuracyCVbar")
+            )
+        )
+        }
+    })
+    
     # Cost Results -------------------------------------
     
     output$costresultsvalue <- renderValueBox({
         result <- round(v$resultData, digits = 0)
         valueBox(
-            value = paste("Cost : ",v$resultData)
-            ,paste('Cost :',v$resultData)
+            value = paste("Cost : ",result)
+            ,paste('Cost :',result)
             ,icon = icon("menu-hamburger",lib='glyphicon')
             ,color = "green")
     })
+    
+    ############################## SAVED #################################"
+    
+    # Accuracy CrossValidation SAVED ------------------------------------
+    
+    output$accurancyvalueSaved <- renderValueBox({
+        if (!is.null(v$accuracyTabSaved)){
+        res <- v$accuracyTabSaved
+        mean <- mean(res)
+        error <- qt(0.975,df=length(res)-1)*sd(res)/sqrt(length(res))
+        
+        left <- mean - error
+        right <- mean + error
+        
+        v$accuracySaved <- round(v$accuracySaved, digits = 2)
+        valueBox(
+            value = paste("Accuracy : ",v$accuracySaved,"%")
+            ,paste('Confidence Interval :',round(left,digits = 1),"%  /  ",round(right,digits = 1),"%")
+            ,icon = icon("stats",lib='glyphicon')
+            ,color = "purple")
+        }
+        
+    })
+    
+    # Accuracy BarChart CrossValidation SAVED ------------------------------------
+    
+    output$accuracyCVbarSaved <- renderPlotly ({
+        if (!is.null(v$accuracySaved)) {
+            plot_ly(
+                x = c(1:input$foldselection),
+                y = c(v$accuracyTabSaved),
+                name = "Bar Chart",
+                type = "bar"
+            )
+        }
+    })
+    
+    output$boxBarCharSaved <- renderUI({
+        if (!is.null(v$accuracySaved)) {
+            fluidRow(
+                box( width = 12,
+                     title = "Accuracy Bar Chart"
+                     ,status = "primary"
+                     ,solidHeader = TRUE 
+                     ,collapsible = TRUE
+                     ,collapsed = TRUE
+                     ,plotlyOutput("accuracyCVbarSaved")
+                )
+            )
+        }
+    })
+    
+    # Cost Results SAVED -------------------------------------
+    
+    output$costresultsvalueSaved <- renderValueBox({
+        result <- round(v$resultDataSaved, digits = 0)
+        valueBox(
+            value = paste("Cost : ",result)
+            ,paste('Cost :',result)
+            ,icon = icon("menu-hamburger",lib='glyphicon')
+            ,color = "green")
+    })
+    
+    # Table from CSV 4 SAVED --------------------------------------------
+    
+    output$tabLoadedstep4Saved <- renderDataTable(
+        v$dataframestep4Saved,
+        options = list(scrollX = TRUE,pageLength = 14, searching = FALSE)
+    )
     
     
 }
