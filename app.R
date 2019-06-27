@@ -221,7 +221,7 @@ server <- function(input, output,session) {
         v$dataframestep2Bis = NULL
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
-        v$columnSelected = NULL
+        #v$columnSelected = NULL
         
         v$tabCosts = NULL
         v$resultData = NULL
@@ -235,6 +235,9 @@ server <- function(input, output,session) {
         v$accuracySaved = NULL
         v$accuracyTabSaved = NULL
         v$resNAsBarChartSaved = NULL
+        
+        updateTabsetPanel(session, "tabset",
+                          selected = "barchart")
         
     })
     
@@ -344,9 +347,25 @@ server <- function(input, output,session) {
     observeEvent(input$step3button,{
         v$dataframestep3 <- v$dataframestep2
         
-        v$tabCosts <- data.frame(Prediction=c("No","Yes","No","Yes"),
-                                 Reality=c("No","No","Yes","Yes"),
-                                 cost=c(0,5,10,0))
+        colName <- v$columnSelected
+        
+        col <- v$dataframestep3[,c(colName)]
+        colNA <- is.na(col)
+        df <- v$dataframestep3[!colNA,]
+        print("ok avant")
+        task = makeClassifTask(data = df, target = colName)
+        print("ok après")
+        selected_model = makeLearner("classif.naiveBayes")
+        NB_mlr = mlr::train(selected_model, task)
+        
+        NB_mlr$learner.model
+        predictions_mlr = as.data.frame(predict(NB_mlr, newdata = df[,!names(df) %in% c(colName)]))
+        tab <- table(predictions_mlr[,1],df[,c(colName)])
+        cost <- 0
+        v$tabCosts <- data.frame(as.data.frame(tab)[,-3],cost)
+        
+        
+        #v$tabCosts <- data.frame(Prediction=c("No","Yes","No","Yes"), Reality=c("No","No","Yes","Yes"), cost=c(0,5,10,0))
         
         newtab <- switch(input$sidebarmenu,
                          "dataqualityconfig" = "costsconfig",
@@ -367,7 +386,7 @@ server <- function(input, output,session) {
         v$dataframestep2Bis = NULL
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
-        v$columnSelected = NULL
+        #v$columnSelected = NULL
         
         v$tabCosts = NULL
         v$resultData = NULL
@@ -381,6 +400,9 @@ server <- function(input, output,session) {
         v$accuracySaved = NULL
         v$accuracyTabSaved = NULL
         v$resNAsBarChartSaved = NULL
+        
+        updateTabsetPanel(session, "tabset",
+                          selected = "barchart")
         
         newtab <- switch(input$sidebarmenu,
                          "dataqualityconfig" = "initialisation",
@@ -543,7 +565,7 @@ server <- function(input, output,session) {
         v$dataframestep2Bis = NULL
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
-        v$columnSelected = NULL
+        #v$columnSelected = NULL
         
         v$tabCosts = NULL
         v$resultData = NULL
@@ -557,6 +579,9 @@ server <- function(input, output,session) {
         v$accuracySaved = NULL
         v$accuracyTabSaved = NULL
         v$resNAsBarChartSaved = NULL
+        
+        updateTabsetPanel(session, "tabset",
+                          selected = "barchart")
         
         newtab <- switch(input$sidebarmenu,
                          "costsconfig" = "initialisation",
@@ -626,7 +651,7 @@ server <- function(input, output,session) {
         v$dataframestep2Bis = NULL
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
-        v$columnSelected = NULL
+        #v$columnSelected = NULL
         
         v$tabCosts = NULL
         v$resultData = NULL
@@ -640,6 +665,9 @@ server <- function(input, output,session) {
         v$accuracySaved = NULL
         v$accuracyTabSaved = NULL
         v$resNAsBarChartSaved = NULL
+        
+        updateTabsetPanel(session, "tabset",
+                          selected = "barchart")
         
         newtab <- switch(input$sidebarmenu,
                          "results" = "initialisation",
@@ -661,6 +689,10 @@ server <- function(input, output,session) {
         v$resNAsBarChartSaved = v$resNAsBarChart
         v$dataframestep4Saved = v$dataframestep4
         v$compared = TRUE
+        v$dataframestep2 <- v$dataframestep1
+        
+        updateTabsetPanel(session, "tabset",
+                          selected = "barchart")
         
         newtab <- switch(input$sidebarmenu,
                          "results" = "dataqualityconfig",
