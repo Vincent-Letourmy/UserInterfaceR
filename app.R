@@ -5,6 +5,7 @@ library(mlr)
 library(caret)
 library(dplyr)
 library(plotly)
+library(rhandsontable)
 
 ############################################################# UI ###################################################################
 
@@ -122,10 +123,10 @@ body <- dashboardBody(
                 sidebarPanel(
                     h1("Costs Config"),
                     tags$hr(),
-                    uiOutput("cost1"),
-                    uiOutput("cost2"),
-                    tags$hr(),
-                    uiOutput("costsTab"),
+                    helpText("Editable table"),
+                    rHandsontableOutput("costsTab"),
+                    actionButton("saveBtn","Save"),
+                    downloadButton('downloadData', 'Download'),
                     tags$hr(),
                     uiOutput("foldselection"),
                     uiOutput("step4button"),
@@ -191,6 +192,7 @@ server <- function(input, output,session) {
                         dataframestep4 = NULL,
                         columnSelected = NULL,
                         
+                        tabCosts = NULL,
                         resultData = NULL, 
                         accuracy = NULL, 
                         accuracyTab = NULL,
@@ -220,6 +222,8 @@ server <- function(input, output,session) {
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
         v$columnSelected = NULL
+        
+        v$tabCosts = NULL
         v$resultData = NULL
         v$accuracy = NULL
         v$accuracyTab = NULL
@@ -339,6 +343,11 @@ server <- function(input, output,session) {
     })
     observeEvent(input$step3button,{
         v$dataframestep3 <- v$dataframestep2
+        
+        v$tabCosts <- data.frame(Prediction=c("No","Yes","No","Yes"),
+                                 Reality=c("No","No","Yes","Yes"),
+                                 cost=c(0,5,10,0))
+        
         newtab <- switch(input$sidebarmenu,
                          "dataqualityconfig" = "costsconfig",
                          "costsconfig" = "dataqualityconfig"
@@ -359,6 +368,8 @@ server <- function(input, output,session) {
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
         v$columnSelected = NULL
+        
+        v$tabCosts = NULL
         v$resultData = NULL
         v$accuracy = NULL
         v$accuracyTab = NULL
@@ -505,7 +516,7 @@ server <- function(input, output,session) {
             Var2 = c(0,0,1,1),
             Freq = c(mean(nono),mean(yesno),mean(noyes),mean(yesyes))
         )
-        v$resultData = sum(restab$Freq * resultats$cost) * 5
+        v$resultData = sum(restab$Freq * v$tabCosts$cost) * 5 ##############################################################################################################################################
         
         
         v$accuracy <<- mean(moy)
@@ -533,6 +544,8 @@ server <- function(input, output,session) {
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
         v$columnSelected = NULL
+        
+        v$tabCosts = NULL
         v$resultData = NULL
         v$accuracy = NULL
         v$accuracyTab = NULL
@@ -554,16 +567,6 @@ server <- function(input, output,session) {
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Selections ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     
-    # Cost 1 --------------------------------------------
-    output$cost1 <- renderUI({
-        numericInput("cost1","Cost Yes -> No",value = 5)
-    })
-    
-    # Cost 2 --------------------------------------------
-    output$cost2 <- renderUI({
-        numericInput("cost2","Cost No -> Yes",value = 10)
-    })
-    
     # Slide selection number of fold for crossValidation
     output$foldselection <- renderUI({
         sliderInput("foldselection","Number of fold for crossValidation", 1,50,30)
@@ -579,11 +582,33 @@ server <- function(input, output,session) {
     )
     
     # Costs Tab --------------------------------------------------
-    output$costsTab <- renderTable({
-        resultats <<- data.frame(Prediction=c("No","Yes","No","Yes"),
-                                 Reality=c("No","No","Yes","Yes"),
-                                 cost=c(0,input$cost1,input$cost2,0))
+    output$costsTab <- renderRHandsontable({
+        rhandsontable(v$tabCosts)
     })
+    observeEvent(input$saveBtn, {
+        write.csv(hot_to_r(input$costsTab), file = "MyData.csv",row.names = FALSE)
+        v$tabCosts <- as.data.frame(read.csv("MyData.csv"))
+        
+    })
+    
+    # DownLoad Button
+    
+    output$downloadData <- downloadHandler(
+        
+        # This function returns a string which tells the client
+        # browser what name to use when saving the file.
+        filename = function() {
+            paste("MydataDownload", "csv", sep = ".")
+        },
+        
+        # This function should write data to a file given to it by
+        # the argument 'file'.
+        content = function(file) {
+            # Write to a file specified by the 'file' argument
+            write.table(v$tabCosts, file, sep = ",",
+                        row.names = FALSE)
+        }
+    )
     
     #_______________________________________________________ Results ____________________________________________________________________________________________#
     
@@ -602,6 +627,8 @@ server <- function(input, output,session) {
         v$dataframestep3 = NULL
         v$dataframestep4 = NULL
         v$columnSelected = NULL
+        
+        v$tabCosts = NULL
         v$resultData = NULL
         v$accuracy = NULL
         v$accuracyTab = NULL
