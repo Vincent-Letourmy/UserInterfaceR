@@ -317,18 +317,22 @@ server <- function(input, output,session) {
     
     
     
-    # Remove All NAs button --------------------------------------------
+    # Remove All missing values button --------------------------------------------
     
     output$removeNAsbutton <- renderUI({
         if(is.null(v$dataframestep2)) return (NULL)
         actionButton("removeNAsbutton","Remove All NAs")
     })
     observeEvent(input$removeNAsbutton,{
-        vect <- 0
-        bool <- 0
-        for (i in row.names(v$dataframestep2)){
-            bool = is.na(v$dataframestep2[i,])
-            if(!TRUE %in% bool){
+        df <- v$dataframestep2
+        for (i in row.names(df)){
+            a <- 0
+            for (j in df[i,]) {
+                if(j == "" || is.na(j)) a = a + 1
+            }
+            bool = a > 0
+            
+            if(isFALSE(bool)){
                 vect[i] = i
             }
         }
@@ -447,7 +451,16 @@ server <- function(input, output,session) {
             res <- 0
             for (i in names(v$dataframestep2)) {
                 col <- v$dataframestep2[,i]
-                res[i] = round(sum(is.na(col), na.rm = TRUE) / length(col) * 100,digits = 2)
+                if (is.numeric(col) || is.logical(col)){
+                    res[i] = round(sum(is.na(col), na.rm = TRUE) / length(col) * 100,digits = 2)
+                }
+                else {
+                    a <- 0
+                    for (j in col) {
+                        if(j == "") a = a + 1
+                    }
+                    res[i] = round(a / length(col) * 100,digits = 2)
+                }
             }
             v$resNAsBarChart <- res[-1]
             plot_ly(x = names(v$resNAsBarChart), y = v$resNAsBarChart, name = "Pourcentage of NAs in each column", type = "bar")
